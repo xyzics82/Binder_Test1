@@ -508,7 +508,7 @@
   }
 
   async function initializeApp() {
-    stravaInit(); // 스트라바 OAuth 리다이렉트 처리 + 자동 동기화 (로그인 여부와 무관)
+    icuInit(); // intervals.icu 자동 동기화 (로그인 여부와 무관)
     if (!authSession?.access_token) {
       authStatus = "signed-out";
       render();
@@ -1194,7 +1194,7 @@
       return "각 탭에 무엇을 쓰는지, 사용 예시를 한곳에서 봅니다.";
     }
     if (state.activeView === "settings") {
-      return "Google 캘린더·스트라바 연동과 앱 환경을 관리합니다.";
+      return "Google 캘린더·자전거(intervals.icu) 연동과 앱 환경을 관리합니다.";
     }
     return "오늘의 실행과 다음 리뷰까지 한 번에 봅니다.";
   }
@@ -1342,10 +1342,10 @@
     `;
   }
 
-  // ===== 오늘 탭: 자전거 카드 (가민 커넥트 → 스트라바 → 이 앱) =====
+  // ===== 오늘 탭: 자전거 카드 (가민 커넥트 → intervals.icu → 이 앱) =====
 
   function renderTodayBikePanel(date, log) {
-    const connected = stravaConnected();
+    const connected = icuConnected();
     const rides = connected ? bikeRidesForDate(date) : [];
     const manual = log.bike;
     return `
@@ -1354,10 +1354,10 @@
           <div>
             <h2 class="panel-title">🚴 자전거</h2>
             <p class="panel-subtitle">${connected
-              ? `스트라바 연동 중${strava.lastSyncAt ? ` · 마지막 동기화 ${esc(stravaTimeLabel(strava.lastSyncAt))}` : ""}`
-              : "가민으로 기록하고, 스트라바로 모으고, 여기서 하루와 함께 봅니다."}</p>
+              ? `intervals.icu 연동 중${icu.lastSyncAt ? ` · 마지막 동기화 ${esc(icuTimeLabel(icu.lastSyncAt))}` : ""}`
+              : "가민으로 기록하고, 자동으로 모아서, 여기서 하루와 함께 봅니다."}</p>
           </div>
-          ${connected ? `<button type="button" class="icon-btn" data-strava-sync title="스트라바에서 새 라이딩 가져오기">↻</button>` : ""}
+          ${connected ? `<button type="button" class="icon-btn" data-icu-sync title="새 라이딩 가져오기">↻</button>` : ""}
         </div>
         <div class="panel-body bike-body">
           ${rides.length ? rides.map(renderBikeRideCard).join("") : ""}
@@ -1373,7 +1373,7 @@
           ${!rides.length && !manual ? `
             <p class="bike-empty">${connected
               ? "이 날짜의 라이딩 기록이 없습니다. 라이딩 후 ↻를 눌러 가져오세요."
-              : "아직 스트라바가 연결되지 않았습니다. 아래에 직접 적거나, 설정에서 연결하세요."}</p>
+              : "아직 자동 연동이 설정되지 않았습니다. 아래에 직접 적거나, 설정에서 연결하세요 (무료)."}</p>
             <form class="bike-manual-form" data-form="bike-manual" data-bike-date="${attr(date)}">
               <input name="km" type="number" step="0.1" min="0" inputmode="decimal" placeholder="거리 km" required>
               <input name="min" type="number" step="1" min="0" inputmode="numeric" placeholder="시간 분" required>
@@ -1382,8 +1382,8 @@
           ` : ""}
           <div class="bike-links">
             <a class="text-btn tiny" href="https://connect.garmin.com/modern/" target="_blank" rel="noopener">가민 커넥트 열기</a>
-            <a class="text-btn tiny" href="https://www.strava.com/dashboard" target="_blank" rel="noopener">스트라바 열기</a>
-            ${connected ? "" : `<button type="button" class="text-btn tiny primary" data-view="settings">스트라바 연결하기</button>`}
+            <a class="text-btn tiny" href="https://intervals.icu" target="_blank" rel="noopener">intervals.icu 열기</a>
+            ${connected ? "" : `<button type="button" class="text-btn tiny primary" data-view="settings">자동 연동 설정하기</button>`}
           </div>
         </div>
       </section>
@@ -1397,7 +1397,7 @@
           <strong>${esc(ride.name)}</strong>
           <span>${ride.distanceKm.toFixed(1)}km · ${esc(minutesToText(ride.movingMin))} · ${ride.avgSpeedKmh.toFixed(1)}km/h${ride.elevM ? ` · ↑${Math.round(ride.elevM)}m` : ""}</span>
         </div>
-        <a class="text-btn tiny" href="https://www.strava.com/activities/${attr(String(ride.id))}" target="_blank" rel="noopener" title="스트라바에서 상세 보기">보기</a>
+        <a class="text-btn tiny" href="https://intervals.icu/activities/${attr(String(ride.id))}" target="_blank" rel="noopener" title="intervals.icu에서 상세 보기">보기</a>
       </div>
     `;
   }
@@ -2530,7 +2530,7 @@
             <details class="settings-help tab-help-details">
               <summary>이 탭에 무엇을 쓰나요?</summary>
               <ul>
-                <li><strong>운동</strong> — 자전거 타기, 스트레칭, 근력. 자전거는 스트라바를 연결하면 라이딩한 날 자동으로 체크됩니다.</li>
+                <li><strong>운동</strong> — 자전거 타기, 스트레칭, 근력. 자전거는 intervals.icu를 연결하면 라이딩한 날 자동으로 체크됩니다.</li>
                 <li><strong>아이들과 공부</strong> — 함께 책 읽기, 수학 문제, 영어 등 '했다/안 했다'만 기록합니다.</li>
                 <li><strong>연구 습관</strong> — 논문·자료 읽기처럼 매주 꾸준히 쌓여야 하는 일.</li>
               </ul>
@@ -2580,7 +2580,7 @@
           </section>
           <section class="panel">
             <div class="panel-header"><h2 class="panel-title">이번 주 라이딩</h2></div>
-            <div class="panel-body"><div class="mini-stat"><strong>${bikeKm > 0 ? `${bikeKm.toFixed(1)}km` : "0km"}</strong><span>${stravaConnected() ? "스트라바 기록 기준" : "수동 기록 기준"}</span></div></div>
+            <div class="panel-body"><div class="mini-stat"><strong>${bikeKm > 0 ? `${bikeKm.toFixed(1)}km` : "0km"}</strong><span>${icuConnected() ? "자동 연동 기록 기준" : "수동 기록 기준"}</span></div></div>
           </section>
           <section class="panel">
             <div class="panel-header"><h2 class="panel-title">완료한 할 일</h2></div>
@@ -2658,7 +2658,7 @@
               ${renderGuideCard("1", "Plan으로 계획하기", "05:00부터 24:00까지 15분 단위", "주간 탭에서 드래그로 계획 시간을 만들고, 필요한 경우 다시 끌어서 시간을 조정합니다.")}
               ${renderGuideCard("2", "Do로 실행 기록하기", "계획을 눌러 실제 실행 작성", "Do 모드에서는 계획 카드를 먼저 크게 확인하고, 클릭해 실행을 저장하면 Plan/Do가 나란히 정리됩니다.")}
               ${renderGuideCard("3", "체크리스트 분리", "주간 체크와 일일 체크를 따로 관리", "일일 체크박스는 하루마다, 주간 체크박스는 한 주 동안 확인할 항목으로 분리해 관리합니다.")}
-              ${renderGuideCard("4", "자전거 자동 기록", "가민 → 스트라바 → 오늘 탭", "설정에서 스트라바를 연결하면 가민으로 기록한 라이딩이 오늘 탭 자전거 카드와 루틴 체크, 주간 통계에 자동으로 나타납니다.")}
+              ${renderGuideCard("4", "자전거 자동 기록", "가민 → intervals.icu → 오늘 탭", "설정에서 intervals.icu(무료)를 연결하면 가민으로 기록한 라이딩이 오늘 탭 자전거 카드와 루틴 체크, 주간 통계에 자동으로 나타납니다.")}
             </div>
           </div>
         </section>
@@ -2726,7 +2726,7 @@
         how: [
           "아침: 오늘 체크박스에 '오늘 반드시 끝낼 일' 3~5개만 적습니다.",
           "일정 카드를 누르면 옆 패널에서 실행 기록을 수정하고, 메모에 실험 조건·회의 결정사항을, 사진에 장비 세팅이나 결과 화면을 붙입니다. 나중에 '그때 조건이 뭐였지?'를 여기서 찾게 됩니다.",
-          "자전거 카드: 라이딩한 날 ↻를 누르면 스트라바에서 기록(거리·시간·속도·고도)을 가져옵니다. 연결 전이면 거리/시간만 직접 입력해도 루틴이 체크됩니다.",
+          "자전거 카드: 라이딩한 날 ↻를 누르면 intervals.icu에서 기록(거리·시간·속도·고도)을 가져옵니다. 연결 전이면 거리/시간만 직접 입력해도 루틴이 체크됩니다.",
           "자기 전: 회고 2~3줄 — 잘된 것 1개, 걸린 것 1개, 내일 첫 일 1개."
         ],
         examples: [
@@ -2794,7 +2794,7 @@
         how: [
           "'주 n회'로 지키고 싶은 활동만 등록합니다. 목표 횟수는 지킬 수 있는 수준으로 낮게 — 채우는 재미가 유지의 엔진입니다.",
           "한 날의 요일 칸을 탭하면 체크, 다시 탭하면 해제. 목표를 채우면 달성 배지가 초록으로 바뀝니다.",
-          "자전거는 스트라바를 연결해두면 라이딩한 날 자동으로 체크됩니다.",
+          "자전거는 intervals.icu를 연결해두면 라이딩한 날 자동으로 체크됩니다.",
           "아이들과 공부는 아이와 '같이' 체크하세요 — 표가 채워지는 걸 아이가 보면 다음 날이 쉬워집니다."
         ],
         examples: [
@@ -3485,7 +3485,7 @@
       });
     });
 
-    bindStravaEvents();
+    bindIcuEvents();
   }
 
   function setupWeekTopScroll() {
@@ -4370,55 +4370,51 @@
     return [...base, unlinked];
   }
 
-  // ===== 스트라바 연동 (자전거) =====
-  // 흐름: 가민 기기로 라이딩 기록 → 가민 커넥트가 스트라바로 자동 업로드(가민 앱에서 1회 설정)
-  //       → 이 앱이 스트라바 API로 라이딩을 읽어 오늘 탭·통계·루틴에 반영한다.
-  // 가민 공식 API는 기업 승인제라 개인 앱에서 쓸 수 없어 스트라바를 허브로 사용한다.
-  // GCal과 동일하게 본인 소유 API 앱(Client ID/Secret)을 설정 탭에 입력하는 개인용 구조.
+  // ===== intervals.icu 연동 (자전거) =====
+  // 흐름: 가민 기기로 라이딩 기록 → 가민 커넥트가 intervals.icu로 자동 동기화(1회 설정)
+  //       → 이 앱이 intervals.icu API로 라이딩을 읽어 오늘 탭·통계·루틴에 반영한다.
+  // 가민 공식 API는 기업 승인제, 스트라바 API는 2026-06부터 유료 구독 필수가 되어
+  // 무료·개인 API 키 방식인 intervals.icu를 허브로 사용한다.
+  // 인증: Basic (username "API_KEY", password = 키), athlete id "0" = 본인. /api/v1/는 CORS 지원.
 
-  const STRAVA_LOCAL_KEY = "life-binder-strava-v1";
-  const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
-  const STRAVA_API = "https://www.strava.com/api/v3";
-  const STRAVA_RIDE_TYPES = ["Ride", "VirtualRide", "GravelRide", "MountainBikeRide", "EBikeRide", "EMountainBikeRide", "Velomobile", "Handcycle"];
-  const STRAVA_SYNC_DAYS = 60;
-  const STRAVA_AUTO_SYNC_MINUTES = 30;
+  const ICU_LOCAL_KEY = "life-binder-icu-v1";
+  const ICU_API = "https://intervals.icu/api/v1";
+  const ICU_RIDE_TYPES = ["Ride", "VirtualRide", "GravelRide", "MountainBikeRide", "EBikeRide", "EMountainBikeRide", "Velomobile", "Handcycle"];
+  const ICU_SYNC_DAYS = 60;
+  const ICU_AUTO_SYNC_MINUTES = 30;
 
-  let strava = loadStravaLocal();
-  let stravaStatusText = "";
-  let stravaSyncing = false;
+  let icu = loadIcuLocal();
+  let icuStatusText = "";
+  let icuSyncing = false;
 
-  function loadStravaLocal() {
+  function loadIcuLocal() {
     try {
-      const raw = window.localStorage.getItem(STRAVA_LOCAL_KEY);
+      const raw = window.localStorage.getItem(ICU_LOCAL_KEY);
       const parsed = raw ? JSON.parse(raw) : {};
       return {
-        clientId: parsed.clientId || "",
-        clientSecret: parsed.clientSecret || "",
-        accessToken: parsed.accessToken || "",
-        refreshToken: parsed.refreshToken || "",
-        expiresAt: Number(parsed.expiresAt) || 0,
+        apiKey: parsed.apiKey || "",
         athleteName: parsed.athleteName || "",
         lastSyncAt: parsed.lastSyncAt || "",
         activities: Array.isArray(parsed.activities) ? parsed.activities : []
       };
     } catch (error) {
-      return { clientId: "", clientSecret: "", accessToken: "", refreshToken: "", expiresAt: 0, athleteName: "", lastSyncAt: "", activities: [] };
+      return { apiKey: "", athleteName: "", lastSyncAt: "", activities: [] };
     }
   }
 
-  function saveStravaLocal() {
+  function saveIcuLocal() {
     try {
-      window.localStorage.setItem(STRAVA_LOCAL_KEY, JSON.stringify(strava));
+      window.localStorage.setItem(ICU_LOCAL_KEY, JSON.stringify(icu));
     } catch (error) {
-      console.warn("Strava local save failed.", error);
+      console.warn("intervals.icu local save failed.", error);
     }
   }
 
-  function stravaConnected() {
-    return Boolean(strava.refreshToken);
+  function icuConnected() {
+    return Boolean(icu.apiKey);
   }
 
-  function stravaTimeLabel(iso) {
+  function icuTimeLabel(iso) {
     if (!iso) return "-";
     try {
       return new Intl.DateTimeFormat("ko", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(iso));
@@ -4427,103 +4423,56 @@
     }
   }
 
-  function stravaRedirectUri() {
-    return `${window.location.origin}${window.location.pathname}`;
+  function icuAuthHeader() {
+    return `Basic ${btoa(`API_KEY:${icu.apiKey}`)}`;
   }
 
-  function stravaConnect() {
-    if (!strava.clientId || !strava.clientSecret) {
-      stravaStatusText = "Client ID와 Secret을 먼저 저장해 주세요.";
-      render();
-      return;
-    }
-    const params = new URLSearchParams({
-      client_id: strava.clientId,
-      redirect_uri: stravaRedirectUri(),
-      response_type: "code",
-      approval_prompt: "auto",
-      scope: "read,activity:read_all",
-      state: "sb-strava"
-    });
-    window.location.href = `https://www.strava.com/oauth/authorize?${params.toString()}`;
-  }
-
-  function stravaDisconnect() {
-    strava.accessToken = "";
-    strava.refreshToken = "";
-    strava.expiresAt = 0;
-    strava.athleteName = "";
-    stravaStatusText = "연결을 해제했습니다.";
-    saveStravaLocal();
+  function icuDisconnect() {
+    icu.apiKey = "";
+    icu.athleteName = "";
+    icu.activities = [];
+    icu.lastSyncAt = "";
+    icuStatusText = "연결을 해제했습니다.";
+    saveIcuLocal();
     render();
   }
 
-  // 스트라바 인증 후 ?code=...&state=sb-strava 로 돌아온 경우 토큰으로 교환한다.
-  async function stravaHandleRedirect() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("state") !== "sb-strava") return;
-    const code = params.get("code");
-    const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
-    window.history.replaceState(null, "", cleanUrl);
-    if (!code) {
-      stravaStatusText = "스트라바 연결이 취소되었습니다.";
-      return;
-    }
+  // 키 저장 직후: 키가 유효한지 확인하고(athlete/0) 이름을 받아온 뒤 첫 동기화까지 수행한다.
+  async function icuVerifyAndSync() {
+    if (!icuConnected()) return;
+    icuStatusText = "키 확인 중...";
+    render();
     try {
-      const body = new URLSearchParams({
-        client_id: strava.clientId,
-        client_secret: strava.clientSecret,
-        code,
-        grant_type: "authorization_code"
+      const response = await fetch(`${ICU_API}/athlete/0`, {
+        headers: { Authorization: icuAuthHeader() }
       });
-      const response = await fetch(STRAVA_TOKEN_URL, { method: "POST", body });
-      if (!response.ok) throw new Error(`token exchange ${response.status}`);
+      if (!response.ok) throw new Error(`athlete ${response.status}`);
       const data = await response.json();
-      strava.accessToken = data.access_token || "";
-      strava.refreshToken = data.refresh_token || "";
-      strava.expiresAt = Number(data.expires_at) || 0;
-      strava.athleteName = [data.athlete?.firstname, data.athlete?.lastname].filter(Boolean).join(" ");
-      stravaStatusText = "스트라바가 연결되었습니다.";
-      saveStravaLocal();
-      await stravaSyncNow(true);
+      icu.athleteName = data.name || data.firstname || "연결됨";
+      saveIcuLocal();
+      await icuSyncNow(false);
+      icuStatusText = icuStatusText || "연결되었습니다.";
     } catch (error) {
-      console.error("Strava token exchange failed.", error);
-      stravaStatusText = "연결 실패 — Client ID/Secret과 콜백 도메인을 확인해 주세요.";
+      console.error("intervals.icu verify failed.", error);
+      icuStatusText = "키 확인 실패 — API 키를 다시 확인해 주세요.";
     }
+    render();
   }
 
-  async function stravaEnsureToken() {
-    const now = Math.floor(Date.now() / 1000);
-    if (strava.accessToken && strava.expiresAt - 120 > now) return;
-    const body = new URLSearchParams({
-      client_id: strava.clientId,
-      client_secret: strava.clientSecret,
-      refresh_token: strava.refreshToken,
-      grant_type: "refresh_token"
-    });
-    const response = await fetch(STRAVA_TOKEN_URL, { method: "POST", body });
-    if (!response.ok) throw new Error(`token refresh ${response.status}`);
-    const data = await response.json();
-    strava.accessToken = data.access_token || "";
-    strava.refreshToken = data.refresh_token || strava.refreshToken;
-    strava.expiresAt = Number(data.expires_at) || 0;
-    saveStravaLocal();
-  }
-
-  async function stravaSyncNow(rerender) {
-    if (!stravaConnected() || stravaSyncing) return;
-    stravaSyncing = true;
-    stravaStatusText = "동기화 중...";
+  async function icuSyncNow(rerender) {
+    if (!icuConnected() || icuSyncing) return;
+    icuSyncing = true;
+    icuStatusText = "동기화 중...";
     try {
-      await stravaEnsureToken();
-      const after = Math.floor(Date.now() / 1000) - STRAVA_SYNC_DAYS * 86400;
-      const response = await fetch(`${STRAVA_API}/athlete/activities?after=${after}&per_page=100`, {
-        headers: { Authorization: `Bearer ${strava.accessToken}` }
+      const oldest = addDays(todayISO(), -ICU_SYNC_DAYS);
+      const newest = addDays(todayISO(), 1);
+      const response = await fetch(`${ICU_API}/athlete/0/activities?oldest=${oldest}&newest=${newest}`, {
+        headers: { Authorization: icuAuthHeader() }
       });
       if (!response.ok) throw new Error(`activities ${response.status}`);
       const list = await response.json();
-      strava.activities = (Array.isArray(list) ? list : [])
-        .filter((activity) => STRAVA_RIDE_TYPES.includes(activity.sport_type || activity.type))
+      icu.activities = (Array.isArray(list) ? list : [])
+        .filter((activity) => ICU_RIDE_TYPES.includes(activity.type))
         .map((activity) => ({
           id: activity.id,
           name: activity.name || "라이딩",
@@ -4533,15 +4482,15 @@
           elevM: Number(activity.total_elevation_gain) || 0,
           avgSpeedKmh: (Number(activity.average_speed) || 0) * 3.6
         }));
-      strava.lastSyncAt = new Date().toISOString();
-      stravaStatusText = `동기화 완료 — 최근 ${STRAVA_SYNC_DAYS}일 라이딩 ${strava.activities.length}건`;
-      saveStravaLocal();
+      icu.lastSyncAt = new Date().toISOString();
+      icuStatusText = `동기화 완료 — 최근 ${ICU_SYNC_DAYS}일 라이딩 ${icu.activities.length}건`;
+      saveIcuLocal();
       autoCheckBikeRoutine();
     } catch (error) {
-      console.error("Strava sync failed.", error);
-      stravaStatusText = "동기화 실패 — 잠시 후 다시 시도해 주세요.";
+      console.error("intervals.icu sync failed.", error);
+      icuStatusText = "동기화 실패 — 잠시 후 다시 시도해 주세요.";
     } finally {
-      stravaSyncing = false;
+      icuSyncing = false;
       if (rerender) render();
     }
   }
@@ -4550,7 +4499,7 @@
   function autoCheckBikeRoutine() {
     const bikeRoutine = state.routines.find((routine) => routine.id === "routine-bike" || routine.name.includes("자전거"));
     if (!bikeRoutine) return;
-    const rideDates = new Set(strava.activities.map((ride) => ride.date));
+    const rideDates = new Set(icu.activities.map((ride) => ride.date));
     let changed = false;
     rideDates.forEach((date) => {
       const list = Array.isArray(state.routineChecks[date]) ? state.routineChecks[date] : [];
@@ -4566,14 +4515,14 @@
   }
 
   function bikeRidesForDate(date) {
-    return strava.activities.filter((ride) => ride.date === date);
+    return icu.activities.filter((ride) => ride.date === date);
   }
 
-  // 주간 라이딩 거리: 스트라바 기록이 있는 날은 스트라바, 없는 날은 수동 기록을 합산한다.
+  // 주간 라이딩 거리: 연동 기록이 있는 날은 연동 기록, 없는 날은 수동 기록을 합산한다.
   function weekBikeKm(dates) {
     let total = 0;
     dates.forEach((date) => {
-      const rides = stravaConnected() ? bikeRidesForDate(date) : [];
+      const rides = icuConnected() ? bikeRidesForDate(date) : [];
       if (rides.length) {
         total += rides.reduce((sum, ride) => sum + ride.distanceKm, 0);
         return;
@@ -4584,33 +4533,32 @@
     return total;
   }
 
-  function stravaInit() {
-    stravaHandleRedirect().then(() => {
-      if (!stravaConnected()) return;
-      const last = strava.lastSyncAt ? Date.parse(strava.lastSyncAt) : 0;
-      if (Date.now() - last > STRAVA_AUTO_SYNC_MINUTES * 60 * 1000) {
-        stravaSyncNow(true);
-      }
-    });
+  function icuInit() {
+    if (!icuConnected()) return;
+    const last = icu.lastSyncAt ? Date.parse(icu.lastSyncAt) : 0;
+    if (Date.now() - last > ICU_AUTO_SYNC_MINUTES * 60 * 1000) {
+      icuSyncNow(true);
+    }
   }
 
-  function bindStravaEvents() {
-    const saveButton = app.querySelector("[data-strava-save-keys]");
+  function bindIcuEvents() {
+    const saveButton = app.querySelector("[data-icu-save-key]");
     if (saveButton) {
       saveButton.addEventListener("click", () => {
-        strava.clientId = String(app.querySelector("[data-strava-client-id]")?.value || "").trim();
-        strava.clientSecret = String(app.querySelector("[data-strava-client-secret]")?.value || "").trim();
-        stravaStatusText = "저장했습니다. 이제 '스트라바 계정 연결'을 누르세요.";
-        saveStravaLocal();
-        render();
+        icu.apiKey = String(app.querySelector("[data-icu-api-key]")?.value || "").trim();
+        saveIcuLocal();
+        if (icu.apiKey) {
+          icuVerifyAndSync();
+        } else {
+          icuStatusText = "API 키를 입력해 주세요.";
+          render();
+        }
       });
     }
-    const connectButton = app.querySelector("[data-strava-connect]");
-    if (connectButton) connectButton.addEventListener("click", stravaConnect);
-    const disconnectButton = app.querySelector("[data-strava-disconnect]");
-    if (disconnectButton) disconnectButton.addEventListener("click", stravaDisconnect);
-    app.querySelectorAll("[data-strava-sync]").forEach((button) => {
-      button.addEventListener("click", () => stravaSyncNow(true));
+    const disconnectButton = app.querySelector("[data-icu-disconnect]");
+    if (disconnectButton) disconnectButton.addEventListener("click", icuDisconnect);
+    app.querySelectorAll("[data-icu-sync]").forEach((button) => {
+      button.addEventListener("click", () => icuSyncNow(true));
     });
     app.querySelectorAll("[data-bike-manual-clear]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -5330,100 +5278,70 @@
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2 class="panel-title">스트라바 연동 (자전거)</h2>
-              <p class="panel-subtitle">가민 커넥트의 라이딩이 스트라바를 거쳐 오늘 탭·루틴·통계에 자동으로 나타납니다.</p>
+              <h2 class="panel-title">자전거 자동 연동 — intervals.icu (무료)</h2>
+              <p class="panel-subtitle">가민 커넥트의 라이딩이 intervals.icu를 거쳐 오늘 탭·루틴·통계에 자동으로 나타납니다. 전 과정 무료입니다.</p>
             </div>
           </div>
           <div class="panel-body settings-body">
             <label class="settings-field">
-              <span>Client ID</span>
-              <input type="text" data-strava-client-id value="${attr(strava.clientId)}" placeholder="예: 123456" autocomplete="off" spellcheck="false">
-            </label>
-            <label class="settings-field">
-              <span>Client Secret</span>
-              <input type="password" data-strava-client-secret value="${attr(strava.clientSecret)}" placeholder="스트라바 API 앱의 Secret" autocomplete="off" spellcheck="false">
+              <span>intervals.icu API 키</span>
+              <input type="password" data-icu-api-key value="${attr(icu.apiKey)}" placeholder="intervals.icu 설정 → Developer Settings에서 발급" autocomplete="off" spellcheck="false">
             </label>
             <div class="settings-actions">
-              <button type="button" class="text-btn" data-strava-save-keys>키 저장</button>
-              ${stravaConnected() ? `
-                <button type="button" class="text-btn primary" data-strava-sync>지금 동기화</button>
-                <button type="button" class="text-btn" data-strava-disconnect>연결 해제</button>
-              ` : `
-                <button type="button" class="text-btn primary" data-strava-connect ${strava.clientId && strava.clientSecret ? "" : "disabled"}>스트라바 계정 연결</button>
-              `}
+              <button type="button" class="text-btn primary" data-icu-save-key>키 저장 + 연결</button>
+              ${icuConnected() ? `
+                <button type="button" class="text-btn" data-icu-sync>지금 동기화</button>
+                <button type="button" class="text-btn" data-icu-disconnect>연결 해제</button>
+              ` : ""}
             </div>
             <dl class="settings-meta">
-              <div><dt>연결 계정</dt><dd>${esc(strava.athleteName || "-")}</dd></div>
-              <div><dt>마지막 동기화</dt><dd>${esc(stravaTimeLabel(strava.lastSyncAt))}</dd></div>
-              <div><dt>상태</dt><dd>${esc(stravaStatusText || (stravaConnected() ? "정상" : "미연결"))}</dd></div>
+              <div><dt>연결 계정</dt><dd>${esc(icu.athleteName || "-")}</dd></div>
+              <div><dt>마지막 동기화</dt><dd>${esc(icuTimeLabel(icu.lastSyncAt))}</dd></div>
+              <div><dt>상태</dt><dd>${esc(icuStatusText || (icuConnected() ? "정상" : "미연결"))}</dd></div>
             </dl>
             <div class="settings-flow" aria-label="데이터 흐름">
               <span>가민 기기<em>라이딩 기록</em></span>
               <i>→</i>
-              <span>가민 커넥트<em>자동 업로드</em></span>
+              <span>가민 커넥트<em>자동 동기화</em></span>
               <i>→</i>
-              <span>스트라바<em>기록 보관</em></span>
+              <span>intervals.icu<em>기록 보관 (무료)</em></span>
               <i>→</i>
               <span>이 앱<em>오늘·루틴·통계</em></span>
             </div>
-            <p class="settings-note">가민은 개인에게 데이터를 직접 열어주지 않아, 가민이 공식 지원하는 '스트라바 자동 업로드'를 다리로 사용합니다. 아래 단계를 <strong>한 번만</strong> 해두면 이후는 전부 자동입니다. 라이딩이 있는 날은 오늘 탭 카드에 기록이 뜨고 '자전거' 루틴이 자동 체크되며 통계에 주간 km가 집계됩니다.</p>
+            <p class="settings-note">가민은 개인에게 데이터를 직접 열어주지 않고, 스트라바 API는 2026년 6월부터 유료 구독이 필요해졌습니다. 그래서 <strong>완전 무료</strong>인 훈련 분석 서비스 <strong>intervals.icu</strong>를 다리로 사용합니다. 아래 단계를 <strong>한 번만</strong> 해두면 이후는 전부 자동입니다. 라이딩이 있는 날은 오늘 탭 카드에 기록이 뜨고 '자전거' 루틴이 자동 체크되며 통계에 주간 km가 집계됩니다.</p>
             <details class="settings-help">
-              <summary>0단계 · 스트라바 계정이 없다면 (2분)</summary>
+              <summary>1단계 · intervals.icu 무료 가입 (PC 권장, 2분)</summary>
               <ol>
-                <li>휴대폰에 <strong>Strava</strong> 앱을 설치하거나 <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a>에 접속합니다.</li>
-                <li>구글 계정 등으로 <strong>무료 가입</strong>합니다. 유료 구독은 필요 없습니다.</li>
-                <li>가입 중 <strong>"무료 체험(Free Trial)"</strong> 화면이 나오면 <strong>건너뛰기(Skip) 또는 ✕</strong>를 누르세요. 유료 구독 홍보 화면일 뿐이며, 이 앱 연동에 필요한 기능은 전부 무료 계정으로 됩니다. 결제 정보를 입력하지 않는 한 요금이 청구되지 않습니다.</li>
-              </ol>
-              <p><strong>카드 등록을 요구하는 전체 화면이 떠서 못 넘어가겠다면:</strong> 닫기 버튼(✕)이 화면 왼쪽 위나 오른쪽 위에 아주 작게 있으니 잘 찾아보세요. 그래도 안 보이면 앱을 완전히 종료했다가 다시 여세요 — 가입까지 마쳤다면 계정은 이미 만들어져 있어 무료 계정으로 로그인됩니다. 마지막 방법으로 PC 브라우저에서 <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a>으로 가입하면 카드 요구가 없습니다.</p>
-              <p>실수로 무료 체험을 시작했다면(카드 등록한 경우) 스트라바 <strong>설정 → 구독</strong>에서 체험 기간 안에 해지하면 요금이 나가지 않습니다.</p>
-            </details>
-            <details class="settings-help">
-              <summary>1단계 · 스트라바에서 가민 계정 연결 (휴대폰, 3분)</summary>
-              <p><strong>연결은 스트라바 쪽에서 시작합니다.</strong> 가민 커넥트 앱의 '연결된 앱' 목록에는 Strava가 미리 보이지 않고, 연결이 끝난 뒤에야 나타납니다.</p>
-              <ol>
-                <li>휴대폰에서 <strong>스트라바(Strava)</strong> 앱을 열고 <strong>설정 ⚙</strong>으로 들어갑니다.</li>
-                <li><strong>앱 또는 기기 연결(Connect an App or Device)</strong> 메뉴를 누릅니다.</li>
-                <li>목록에서 <strong>Garmin</strong>을 선택하고 <strong>Connect Garmin</strong>을 누릅니다.</li>
-                <li>가민 계정(가민 커넥트에 쓰는 이메일/비밀번호)으로 로그인하고 권한 요청에 <strong>동의(Accept)</strong>합니다.</li>
-                <li>확인 방법: 다음 라이딩을 저장하면 몇 분 안에 스트라바 피드에 자동으로 올라옵니다. 이제 가민 커넥트 앱의 '연결된 앱'에도 Strava가 보입니다.</li>
-              </ol>
-              <p>PC로 하려면 <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a> 로그인 → 우측 상단 프로필 → 설정에서 <strong>Connect with Garmin</strong>을 누릅니다. 연결이 나중에 끊기면 <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener">strava.com/settings/apps</a>에서 Garmin을 해제했다가 다시 연결하면 됩니다.</p>
-              <p>이미 스트라바에 내 라이딩이 자동으로 올라오고 있다면 이 단계는 완료된 것입니다 — 건너뛰세요.</p>
-            </details>
-            <details class="settings-help">
-              <summary>2단계 · 스트라바 API 키 발급 (PC 권장, 5분, 1회)</summary>
-              <p>이 앱이 내 스트라바 기록을 읽어올 수 있도록 '개인용 열쇠'를 만드는 단계입니다. 무료입니다.</p>
-              <ol>
-                <li>PC 브라우저에서 <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>에 접속해 로그인합니다.</li>
-                <li>양식을 아래처럼 채웁니다:
-                  <ul>
-                    <li><strong>Application Name</strong>: <code>Schedule Binder</code> (아무 이름이나 되지만 'Strava' 단어는 금지)</li>
-                    <li><strong>Category</strong>: 아무거나 (예: Training)</li>
-                    <li><strong>Club</strong>: 비워둡니다</li>
-                    <li><strong>Website</strong>: <code>https://xyzics82.github.io/Schedule_Binder/</code></li>
-                    <li><strong>Authorization Callback Domain</strong>: <code>xyzics82.github.io</code> — <strong>가장 중요합니다.</strong> 이 값이 틀리면 연결이 실패합니다.</li>
-                  </ul>
-                </li>
-                <li>동의에 체크하고 <strong>Create</strong>를 누릅니다. 앱 아이콘을 올리라고 하면 아무 사진이나 올리면 됩니다.</li>
-                <li>완성 화면에서 <strong>Client ID</strong>(숫자)를 복사하고, <strong>Client Secret</strong>은 옆의 <strong>Show</strong>를 눌러 표시한 뒤 복사합니다.</li>
+                <li>브라우저에서 <a href="https://intervals.icu" target="_blank" rel="noopener">intervals.icu</a>에 접속합니다.</li>
+                <li><strong>구글 계정으로 로그인(Sign in with Google)</strong>하거나 이메일로 가입합니다. <strong>완전 무료</strong>이며 카드 등록이나 유료 체험 화면이 없습니다.</li>
               </ol>
             </details>
             <details class="settings-help">
-              <summary>3단계 · 이 앱과 연결 (1분)</summary>
+              <summary>2단계 · intervals.icu에 가민 계정 연결 (2분, 1회)</summary>
               <ol>
-                <li>위 입력칸에 복사한 <strong>Client ID</strong>와 <strong>Client Secret</strong>을 붙여넣고 <strong>키 저장</strong>을 누릅니다.</li>
-                <li><strong>스트라바 계정 연결</strong>을 누르면 스트라바 화면으로 이동합니다 → <strong>승인(Authorize)</strong>을 누릅니다.</li>
-                <li>자동으로 이 앱에 돌아오며 상태가 '연결됨'으로 바뀌고, 최근 60일 라이딩을 바로 가져옵니다.</li>
+                <li>intervals.icu에 로그인한 상태에서 <a href="https://intervals.icu/settings" target="_blank" rel="noopener">설정(Settings)</a> 페이지를 엽니다.</li>
+                <li>연동 서비스 목록에서 <strong>Garmin Connect</strong>를 찾아 <strong>Connect</strong>를 누릅니다.</li>
+                <li>가민 계정(가민 커넥트에 쓰는 이메일/비밀번호)으로 로그인하고 권한 요청에 <strong>동의(Agree)</strong>합니다.</li>
+                <li>연결되면 기존 라이딩 기록도 불러올 수 있고, 이후 새 라이딩은 저장하면 몇 분 안에 자동으로 들어옵니다.</li>
               </ol>
-              <p>이후에는 라이딩 저장 → 스트라바 자동 업로드 → 이 앱이 30분마다(또는 오늘 탭 ↻를 누를 때) 자동으로 가져옵니다.</p>
+            </details>
+            <details class="settings-help">
+              <summary>3단계 · API 키 발급해서 이 앱에 붙여넣기 (2분, 1회)</summary>
+              <ol>
+                <li>intervals.icu <a href="https://intervals.icu/settings" target="_blank" rel="noopener">설정(Settings)</a> 페이지를 <strong>맨 아래까지</strong> 내립니다.</li>
+                <li><strong>Developer Settings</strong> 항목에서 <strong>API Key</strong>를 <strong>생성(Generate)</strong>하고 복사합니다.</li>
+                <li>이 화면 위의 입력칸에 붙여넣고 <strong>키 저장 + 연결</strong>을 누릅니다. 끝!</li>
+              </ol>
+              <p>상태가 '연결됨'으로 바뀌고 최근 60일 라이딩을 바로 가져옵니다. 이후에는 라이딩 저장 → 가민이 intervals.icu로 자동 전송 → 이 앱이 30분마다(또는 오늘 탭 ↻를 누를 때) 자동으로 가져옵니다.</p>
             </details>
             <details class="settings-help">
               <summary>문제 해결 · 자주 묻는 질문</summary>
               <ul>
-                <li><strong>"연결 실패" 메시지가 떠요</strong> — 2단계의 Authorization Callback Domain이 정확히 <code>xyzics82.github.io</code>인지, Client ID/Secret에 공백 없이 붙여넣었는지 확인하세요.</li>
-                <li><strong>라이딩이 안 보여요</strong> — 먼저 스트라바 앱에 그 라이딩이 있는지 확인하세요. 없으면 1단계(가민↔스트라바) 연결 문제이고, 있으면 오늘 탭의 ↻를 눌러 다시 동기화하세요.</li>
-                <li><strong>폰에서도 쓰고 싶어요</strong> — 키는 기기(브라우저)마다 따로 저장됩니다. 폰 브라우저에서 이 설정 탭을 열고 같은 Client ID/Secret으로 3단계만 다시 하면 됩니다.</li>
-                <li><strong>보안이 걱정돼요</strong> — 키와 토큰은 이 기기의 브라우저에만 저장되며 외부 서버로 보내지 않습니다. 언제든 '연결 해제'로 끊을 수 있고, 스트라바 설정에서 앱 접근을 회수할 수도 있습니다.</li>
+                <li><strong>"키 확인 실패"가 떠요</strong> — API 키를 공백 없이 정확히 붙여넣었는지 확인하세요. intervals.icu 설정 → Developer Settings에서 키를 재생성해 다시 붙여넣어도 됩니다.</li>
+                <li><strong>라이딩이 안 보여요</strong> — 먼저 intervals.icu 사이트에 그 라이딩이 있는지 확인하세요. 없으면 2단계(가민 연결) 문제이고, 있으면 오늘 탭의 ↻를 눌러 다시 동기화하세요.</li>
+                <li><strong>폰에서도 쓰고 싶어요</strong> — 키는 기기(브라우저)마다 따로 저장됩니다. 폰에서 이 설정 탭을 열고 같은 API 키로 '키 저장 + 연결'만 다시 하면 됩니다.</li>
+                <li><strong>보안이 걱정돼요</strong> — 키는 이 기기의 브라우저에만 저장되며 외부 서버로 보내지 않습니다. 언제든 '연결 해제'로 끊거나 intervals.icu에서 키를 재생성하면 이전 키는 무효가 됩니다.</li>
+                <li><strong>스트라바는요?</strong> — 스트라바 API는 2026년 6월부터 유료 구독자만 쓸 수 있게 바뀌어 무료인 intervals.icu로 대체했습니다. intervals.icu는 훈련 부하 분석 등 기능도 더 많습니다.</li>
               </ul>
             </details>
           </div>
