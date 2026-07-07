@@ -5372,7 +5372,9 @@
               <ol>
                 <li>휴대폰에 <strong>Strava</strong> 앱을 설치하거나 <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a>에 접속합니다.</li>
                 <li>구글 계정 등으로 <strong>무료 가입</strong>합니다. 유료 구독은 필요 없습니다.</li>
+                <li>가입 중 <strong>"무료 체험(Free Trial)"</strong> 화면이 나오면 <strong>건너뛰기(Skip) 또는 ✕</strong>를 누르세요. 유료 구독 홍보 화면일 뿐이며, 이 앱 연동에 필요한 기능은 전부 무료 계정으로 됩니다. 결제 정보를 입력하지 않는 한 요금이 청구되지 않습니다.</li>
               </ol>
+              <p>실수로 무료 체험을 시작했다면(카드 등록한 경우) 스트라바 <strong>설정 → 구독</strong>에서 체험 기간 안에 해지하면 요금이 나가지 않습니다.</p>
             </details>
             <details class="settings-help">
               <summary>1단계 · 스트라바에서 가민 계정 연결 (휴대폰, 3분)</summary>
