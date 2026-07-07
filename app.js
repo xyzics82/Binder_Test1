@@ -5375,13 +5375,16 @@
               </ol>
             </details>
             <details class="settings-help">
-              <summary>1단계 · 가민 커넥트 ↔ 스트라바 연결 (휴대폰, 3분)</summary>
+              <summary>1단계 · 스트라바에서 가민 계정 연결 (휴대폰, 3분)</summary>
+              <p><strong>연결은 스트라바 쪽에서 시작합니다.</strong> 가민 커넥트 앱의 '연결된 앱' 목록에는 Strava가 미리 보이지 않고, 연결이 끝난 뒤에야 나타납니다.</p>
               <ol>
-                <li>휴대폰에서 <strong>가민 커넥트(Garmin Connect)</strong> 앱을 엽니다.</li>
-                <li>화면 아래 <strong>더보기(≡)</strong> → <strong>설정 ⚙</strong> → <strong>연결된 앱(Connected Apps)</strong>으로 들어갑니다. (앱 버전에 따라 '타사 앱'으로 표시되기도 합니다)</li>
-                <li>목록에서 <strong>Strava</strong>를 누르고, 스트라바 계정으로 로그인한 뒤 <strong>승인(Authorize)</strong>을 누릅니다.</li>
-                <li>확인 방법: 다음 라이딩을 저장하면 몇 분 안에 스트라바 앱 피드에 자동으로 나타납니다.</li>
+                <li>휴대폰에서 <strong>스트라바(Strava)</strong> 앱을 열고 <strong>설정 ⚙</strong>으로 들어갑니다.</li>
+                <li><strong>앱 또는 기기 연결(Connect an App or Device)</strong> 메뉴를 누릅니다.</li>
+                <li>목록에서 <strong>Garmin</strong>을 선택하고 <strong>Connect Garmin</strong>을 누릅니다.</li>
+                <li>가민 계정(가민 커넥트에 쓰는 이메일/비밀번호)으로 로그인하고 권한 요청에 <strong>동의(Accept)</strong>합니다.</li>
+                <li>확인 방법: 다음 라이딩을 저장하면 몇 분 안에 스트라바 피드에 자동으로 올라옵니다. 이제 가민 커넥트 앱의 '연결된 앱'에도 Strava가 보입니다.</li>
               </ol>
+              <p>PC로 하려면 <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a> 로그인 → 우측 상단 프로필 → 설정에서 <strong>Connect with Garmin</strong>을 누릅니다. 연결이 나중에 끊기면 <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener">strava.com/settings/apps</a>에서 Garmin을 해제했다가 다시 연결하면 됩니다.</p>
               <p>이미 스트라바에 내 라이딩이 자동으로 올라오고 있다면 이 단계는 완료된 것입니다 — 건너뛰세요.</p>
             </details>
             <details class="settings-help">
