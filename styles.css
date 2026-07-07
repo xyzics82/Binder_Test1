@@ -8247,6 +8247,7 @@ h1, h2, h3, h4,
     color: var(--teal);
   }
 
+  /* 하단 탭바가 사이드바 가로 네비를 대체한다 */
   .sidebar .nav-list {
     display: none;
   }
@@ -8265,6 +8266,7 @@ h1, h2, h3, h4,
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
+  /* 루틴 표: 좁은 화면에서 가로 스크롤 */
   .routine-table {
     min-width: 520px;
   }
