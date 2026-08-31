@@ -6315,6 +6315,62 @@ button.status-toggle,
   font-weight: 650;
 }
 
+.category-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--cat-color, var(--muted));
+  vertical-align: baseline;
+}
+
+.category-case-table {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.category-case-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.3fr) minmax(96px, 0.16fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--base03);
+}
+
+.category-case-head {
+  background: color-mix(in srgb, var(--teal) 18%, var(--base03));
+}
+
+.category-case-row strong,
+.category-case-row span {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.category-case-verdict {
+  white-space: nowrap;
+}
+
+.category-case-row p {
+  margin: 0;
+  color: var(--base1);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .category-case-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
 /* 탭 안내표 (가이드): 3열 구성 */
 .tab-guide-table .tab-guide-row,
 .tab-guide-table .category-guide-head {

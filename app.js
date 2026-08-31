@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // build: 20260831-categories-sleep-1
+  // build: 20260831-categories-sleep-2
 
   const STORE_KEY = "life-binder-web-state-v1";
   const AUTH_STORE_KEY = "life-binder-auth-v1";
@@ -14,12 +14,12 @@
   // 연구(몰입을 확보했나) / 운영(잡무가 얼마나 먹었나) / 가정(가족에게 시간을 냈나)
   // / 신앙·봉사(리듬이 유지됐나) / 개인(나에게 투자했나) / 회복(충분히 쉬었나)
   const categories = [
-    { id: "mainWork", name: "연구", color: "#f2c94c" },
-    { id: "supportWork", name: "운영", color: "#e85d8f" },
-    { id: "family", name: "가정", color: "#ff922b" },
-    { id: "faithHome", name: "신앙/봉사", color: "#2ec27e" },
-    { id: "selfDev", name: "개인", color: "#4dabf7" },
-    { id: "recovery", name: "회복", color: "#9775fa" }
+    { id: "mainWork", name: "연구", color: "#f2c94c", hint: "논문, 과제, 실험, 강의·강의안, 개발 — 끝나면 산출물이 남는 몰입 작업만" },
+    { id: "supportWork", name: "운영", color: "#e85d8f", hint: "이메일, 행정, 회의, 자료 정리, 이동 — 그 외 업무 전부 (헷갈리면 여기)" },
+    { id: "family", name: "가정", color: "#ff922b", hint: "아이들 공부, 집안일, 가족 행사, 가정예배 — 가족과 함께하는 모든 것" },
+    { id: "faithHome", name: "신앙/봉사", color: "#2ec27e", hint: "예배, 기도, 묵상, 교회 공동체 활동, 봉사, 교재 준비" },
+    { id: "selfDev", name: "개인", color: "#4dabf7", hint: "운동, 독서, 영어, 코딩 같은 자기계발 + 은행, 병원 같은 개인 처리" },
+    { id: "recovery", name: "회복", color: "#9775fa", hint: "혼자 하는 식사, 산책, 낮잠, 쉼 — 밤잠은 오늘 탭 수면 카드에 기록" }
   ];
 
   const DAY_START_HOUR = 5;
@@ -1120,7 +1120,7 @@
         </div>
         <div class="popover-categories ${categoryLocked ? "is-locked" : ""}" role="group" aria-label="일정 분류">
           ${categories.map((category) => `
-            <label style="--category-color:${attr(category.color)}">
+            <label style="--category-color:${attr(category.color)}" title="${attr(category.hint)}">
               <input type="checkbox" name="categoryId" value="${attr(category.id)}" ${category.id === categoryId ? "checked" : ""} ${categoryLocked ? "disabled" : ""}>
               <span class="category-swatch" aria-hidden="true"></span>
               <span>${esc(category.name)}</span>
@@ -2860,8 +2860,10 @@
         how: [
           "월간 탭에서 이번 주에 걸린 마감·행사를 먼저 확인하고 시작합니다.",
           "Plan 모드에서 드래그로 시간 블록을 만듭니다. 순서는 ① 회의·수업 같은 고정 일정 → ② 연구 몰입 블록(오전 2~3시간 덩어리 권장) → ③ 운동·가족 시간. 운동과 가족 시간을 '먼저' 넣어야 지켜집니다.",
+          "회복 블록(혼자 점심 + 산책, 낮잠)도 평일에 미리 깔아두세요. 계획에 없는 회복은 통계에서 항상 0으로 나옵니다.",
           "하루가 끝나면 Do 모드로 전환해 실제 실행을 덮어씁니다. 계획과 어긋났어도 그대로 기록하세요 — 그 어긋남이 다음 주 계획의 데이터가 됩니다.",
-          "주간 체크박스에는 '이번 주 안에만 끝내면 되는 일'을 넣습니다. 특정 요일에 묶지 마세요."
+          "주간 체크박스에는 '이번 주 안에만 끝내면 되는 일'을 넣습니다. 특정 요일에 묶지 마세요.",
+          "지난주와 흐름이 비슷한 주는 요일 머리의 'Plan 복사'로 가져와 다듬는 편이 빈 칸에서 시작하는 것보다 빠릅니다."
         ],
         examples: [
           "Plan: 화 09:00–12:00 「시료 2차 분석」 → Do: 09:20–11:40 「분석 완료. 장비 예열로 20분 지연」",
@@ -2879,6 +2881,7 @@
           "아침: 수면 카드에 어젯밤 취침·기상 시각과 질(1~5)을 10초로 기록합니다. 밤잠은 기상일 기준이고, 목표 취침 안에 잤으면 🌙 루틴이 자동 체크됩니다.",
           "아침: 오늘 체크박스에 '오늘 반드시 끝낼 일' 3~5개만 적습니다.",
           "일정 카드를 누르면 옆 패널에서 실행 기록을 수정하고, 메모에 실험 조건·회의 결정사항을, 사진에 장비 세팅이나 결과 화면을 붙입니다. 나중에 '그때 조건이 뭐였지?'를 여기서 찾게 됩니다.",
+          "Do로 덮어쓸 때 실제로 한 일의 성격이 달랐다면 카테고리도 바꿔 기록하세요 — 계획은 연구였는데 실제는 행정 대응이었던 날, 그대로 두면 몰입 시간이 부풀려집니다.",
           "자전거 카드: 라이딩한 날 ↻를 누르면 intervals.icu에서 기록(거리·시간·속도·고도)을 가져옵니다. 연결 전이면 거리/시간만 직접 입력해도 루틴이 체크됩니다.",
           "자기 전: 회고 2~3줄 — 잘된 것 1개, 걸린 것 1개, 내일 첫 일 1개."
         ],
@@ -2948,6 +2951,7 @@
           "'주 n회'로 지키고 싶은 활동만 등록합니다. 목표 횟수는 지킬 수 있는 수준으로 낮게 — 채우는 재미가 유지의 엔진입니다.",
           "한 날의 요일 칸을 탭하면 체크, 다시 탭하면 해제. 목표를 채우면 달성 배지가 초록으로 바뀝니다.",
           "자전거는 intervals.icu를 연결해두면 라이딩한 날 자동으로 체크됩니다.",
+          "이름에 '취침'이 들어간 루틴(예: 목표 취침 지키기)을 만들어두면, 수면 카드에서 목표 시각 안에 잔 날 자동으로 체크됩니다.",
           "아이들과 공부는 아이와 '같이' 체크하세요 — 표가 채워지는 걸 아이가 보면 다음 날이 쉬워집니다."
         ],
         examples: [
@@ -2966,6 +2970,7 @@
           "영역별 시간: 연구(몰입) 비중이 의도만큼인지, 회복이 너무 적지 않은지 확인합니다.",
           "연구별 투입 시간: 어느 과제가 시간을 잡아먹는지 — 중요한 일이 아니라 급한 일에 시간이 쏠리지 않았는지 봅니다.",
           "루틴 달성과 주간 라이딩 km를 확인합니다.",
+          "수면: 평균 수면시간·질과 취침 시각의 흔들림을 봅니다. 라이딩·몰입 시간과 나란히 보면 컨디션 패턴이 보입니다.",
           "발견한 것 중 딱 1개만 다음 주 계획에 반영합니다. 여러 개 고치려 들면 아무것도 안 바뀝니다."
         ],
         examples: [
@@ -3002,13 +3007,18 @@
   }
 
   function renderCategoryGuideTable() {
-    const rows = [
-      ["연구", "논문, 과제, 실험, 강의·강의안, 개발 — 끝나면 산출물이 남는 몰입 작업만"],
-      ["운영", "이메일, 행정, 회의, 자료 정리, 이동 — 그 외 업무 전부 (헷갈리면 여기)"],
-      ["가정", "아이들 공부, 집안일, 가족 행사, 가정예배 — 가족과 함께하는 모든 것"],
-      ["신앙/봉사", "예배, 기도, 묵상, 교회 공동체 활동, 봉사, 교재 준비"],
-      ["개인", "운동, 독서, 영어, 코딩 같은 자기계발 + 은행, 병원 같은 개인 처리"],
-      ["회복", "혼자 하는 식사, 산책, 낮잠, 쉼 — 밤잠은 오늘 탭 수면 카드에 기록"]
+    const cases = [
+      ["출퇴근 라이딩", "selfDev", "이동을 겸해도 본질은 운동 — 나에게 투자"],
+      ["혼자 먹는 점심, 식후 산책", "recovery", "혼자 + 쉼이면 회복"],
+      ["팀 회식, 업무 점심 미팅", "supportWork", "업무 맥락의 만남은 전부 운영"],
+      ["아이 병원 데려가기", "family", "가족과 함께면 가정"],
+      ["내 병원 진료, 은행 업무", "selfDev", "혼자 처리하는 개인 일"],
+      ["가정예배", "family", "활동(예배)보다 사람 기준(가족)이 우선"],
+      ["중고등부 교재 제작", "faithHome", "공동체를 위한 산출물은 연구가 아니라 봉사"],
+      ["스타트업 개발 작업", "mainWork", "직장 일이 아니어도 산출물이 남는 몰입 작업"],
+      ["논문·자료 읽기", "mainWork", "산출물에 직접 기여하는 몰입 인풋"],
+      ["학회 출장 이동·등록·행정", "supportWork", "이동과 행정은 산출물이 없다"],
+      ["낮잠, 멍때리기, 유튜브 휴식", "recovery", "쉼도 하나의 카테고리 — 숨기지 말고 기록"]
     ];
     return `
       <div class="category-guide-table" role="table" aria-label="카테고리 기준표">
@@ -3016,10 +3026,10 @@
           <strong role="columnheader">카테고리</strong>
           <strong role="columnheader">포함되는 일정</strong>
         </div>
-        ${rows.map(([category, description]) => `
+        ${categories.map((category) => `
           <div class="category-guide-row" role="row">
-            <span role="cell">${esc(category)}</span>
-            <p role="cell">${esc(description)}</p>
+            <span role="cell"><i class="category-dot" style="--cat-color:${attr(category.color)}" aria-hidden="true"></i>${esc(category.name)}</span>
+            <p role="cell">${esc(category.hint)}</p>
           </div>
         `).join("")}
       </div>
@@ -3028,6 +3038,23 @@
         <p>1. 업무인데 헷갈리면 무조건 <b>운영</b>. 연구는 산출물이 남는 일만 엄격하게 — 그래야 통계의 몰입 시간이 정직해집니다.</p>
         <p>2. 일 밖의 시간은 활동이 아니라 <b>사람 기준</b>으로: 가족과 함께면 가정, 교회·공동체 맥락이면 신앙/봉사, 나 혼자면 개인 또는 회복.</p>
         <p>3. 카테고리는 주말 통계에서 묻는 질문입니다 — 연구(몰입을 확보했나) · 운영(잡무가 얼마나 먹었나) · 가정(가족에게 시간을 냈나) · 신앙/봉사(리듬이 유지됐나) · 개인(나에게 투자했나) · 회복(충분히 쉬었나).</p>
+      </div>
+      <div class="category-case-table" role="table" aria-label="애매한 일정 판정 예시">
+        <div class="category-case-row category-case-head" role="row">
+          <strong role="columnheader">애매한 일정</strong>
+          <strong role="columnheader">판정</strong>
+          <strong role="columnheader">왜</strong>
+        </div>
+        ${cases.map(([title, categoryId, reason]) => {
+          const category = categoryById(categoryId);
+          return `
+            <div class="category-case-row" role="row">
+              <span role="cell">${esc(title)}</span>
+              <span role="cell" class="category-case-verdict"><i class="category-dot" style="--cat-color:${attr(category.color)}" aria-hidden="true"></i>${esc(category.name)}</span>
+              <p role="cell">${esc(reason)}</p>
+            </div>
+          `;
+        }).join("")}
       </div>
     `;
   }
