@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // build: 20260610-gcal-mobile-1
+  // build: 20260831-categories-sleep-1
 
   const STORE_KEY = "life-binder-web-state-v1";
   const AUTH_STORE_KEY = "life-binder-auth-v1";
@@ -10,12 +10,16 @@
   const REMOTE_SAVE_DELAY = 800;
   const app = document.getElementById("app");
 
+  // 카테고리 = 주간 통계에서 묻고 싶은 질문 하나당 하나.
+  // 연구(몰입을 확보했나) / 운영(잡무가 얼마나 먹었나) / 가정(가족에게 시간을 냈나)
+  // / 신앙·봉사(리듬이 유지됐나) / 개인(나에게 투자했나) / 회복(충분히 쉬었나)
   const categories = [
-    { id: "mainWork", name: "주업무", color: "#f2c94c" },
-    { id: "supportWork", name: "보조업무", color: "#e85d8f" },
-    { id: "faithHome", name: "신앙/가정/봉사", color: "#2ec27e" },
-    { id: "selfDev", name: "자기개발", color: "#4dabf7" },
-    { id: "network", name: "휴먼 네트워크", color: "#ff922b" }
+    { id: "mainWork", name: "연구", color: "#f2c94c" },
+    { id: "supportWork", name: "운영", color: "#e85d8f" },
+    { id: "family", name: "가정", color: "#ff922b" },
+    { id: "faithHome", name: "신앙/봉사", color: "#2ec27e" },
+    { id: "selfDev", name: "개인", color: "#4dabf7" },
+    { id: "recovery", name: "회복", color: "#9775fa" }
   ];
 
   const DAY_START_HOUR = 5;
@@ -247,9 +251,10 @@
       work: "mainWork",
       study: "selfDev",
       health: "selfDev",
-      relation: "network",
-      rest: "faithHome",
-      admin: "supportWork"
+      relation: "selfDev",
+      rest: "recovery",
+      admin: "supportWork",
+      network: "selfDev"
     };
     return legacyMap[id] || "mainWork";
   }
@@ -552,6 +557,7 @@
       reviews: normalizeReviews(next.reviews),
       weekDrawMode: next.weekDrawMode || "plan",
       todayDetailBlockId: next.todayDetailBlockId || "",
+      sleepGoalBed: typeof next.sleepGoalBed === "string" && /^\d{2}:\d{2}$/.test(next.sleepGoalBed) ? next.sleepGoalBed : "23:30",
       gcalSync: next.gcalSync && typeof next.gcalSync === "object" ? next.gcalSync : {}
     };
   }
@@ -603,7 +609,8 @@
       { id: "routine-bike", name: "자전거 타기", emoji: "🚴", target: 3 },
       { id: "routine-kids", name: "아이들과 공부", emoji: "📖", target: 5 },
       { id: "routine-paper", name: "논문·자료 읽기", emoji: "📄", target: 5 },
-      { id: "routine-body", name: "스트레칭·근력", emoji: "💪", target: 3 }
+      { id: "routine-body", name: "스트레칭·근력", emoji: "💪", target: 3 },
+      { id: "routine-sleep", name: "목표 취침 지키기", emoji: "🌙", target: 7 }
     ];
   }
 
@@ -650,12 +657,26 @@
         photos: Array.isArray(log?.photos) ? log.photos : [],
         shareDraft: log?.shareDraft || "",
         shareFormat: shareFormatById(log?.shareFormat).id,
-        bike: log?.bike && typeof log.bike === "object" ? log.bike : null
+        bike: log?.bike && typeof log.bike === "object" ? log.bike : null,
+        sleep: normalizeSleepLog(log?.sleep)
       };
     });
     return {
       daily,
       weekly: source.weekly || {}
+    };
+  }
+
+  // 수면 기록: 기상일 기준으로 저장한다 (8/31 밤 → 9/1 기록).
+  function normalizeSleepLog(sleep) {
+    if (!sleep || typeof sleep !== "object") return null;
+    const timeOk = (value) => typeof value === "string" && /^\d{1,2}:\d{2}$/.test(value);
+    if (!timeOk(sleep.bed) || !timeOk(sleep.wake)) return null;
+    return {
+      bed: sleep.bed,
+      wake: sleep.wake,
+      quality: Math.min(5, Math.max(1, Math.round(Number(sleep.quality) || 3))),
+      note: typeof sleep.note === "string" ? sleep.note : ""
     };
   }
 
@@ -1244,6 +1265,7 @@
         </section>
         <aside class="today-side">
           ${renderTodayDetailPanel(selectedBlock, date, dailyChecks)}
+          ${renderTodaySleepPanel(date, log)}
           ${renderTodayBikePanel(date, log)}
           ${renderTodayMemoPanel(selectedBlock)}
           ${renderTodayJournalPanel(date, log)}
@@ -1339,6 +1361,85 @@
           ${dailyChecks.length ? dailyChecks.map((item, idx) => renderDailyCheckRow(item, idx, date)).join("") : `<div class="empty">오늘 체크박스가 없습니다.</div>`}
         </div>
       </div>
+    `;
+  }
+
+  // ===== 오늘 탭: 수면 카드 (기상일 기준 — 8/31 밤 잠은 9/1 기록) =====
+
+  function sleepBedAbsMinutes(time) {
+    const minutes = minutesFromTime(time);
+    return minutes >= 720 ? minutes : minutes + 1440; // 정오 이전 취침 = 자정을 넘긴 취침
+  }
+
+  function sleepDurationMinutes(bed, wake) {
+    const bedAbs = sleepBedAbsMinutes(bed);
+    let duration = minutesFromTime(wake) + 1440 - bedAbs;
+    if (duration >= 990) duration -= 1440; // 저녁 기상 같은 비정상 입력 방어 (16.5시간 이상)
+    return duration > 0 ? duration : 0;
+  }
+
+  function sleepMetGoal(bed, goal) {
+    return sleepBedAbsMinutes(bed) <= sleepBedAbsMinutes(goal || "23:30");
+  }
+
+  function sleepQualityDots(quality) {
+    const filled = Math.min(5, Math.max(1, Number(quality) || 3));
+    return `<span class="sleep-quality-dots" title="수면의 질 ${filled}/5" aria-label="수면의 질 ${filled}/5">${"●".repeat(filled)}${"○".repeat(5 - filled)}</span>`;
+  }
+
+  function renderTodaySleepPanel(date, log) {
+    const sleep = log.sleep;
+    const goal = state.sleepGoalBed || "23:30";
+    const qualityLabels = { 1: "매우 나쁨", 2: "나쁨", 3: "보통", 4: "좋음", 5: "매우 좋음" };
+    return `
+      <section class="panel sleep-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">🌙 수면</h2>
+            <p class="panel-subtitle">어젯밤 잠 — 기상일(이 날짜) 기준으로 기록합니다.</p>
+          </div>
+          ${sleep ? `<button type="button" class="icon-btn" data-sleep-clear="${attr(date)}" title="기록 지우기">×</button>` : ""}
+        </div>
+        <div class="panel-body sleep-body">
+          ${sleep ? `
+            <div class="sleep-summary">
+              <div class="sleep-summary-main">
+                <strong>${esc(minutesToText(sleepDurationMinutes(sleep.bed, sleep.wake)))}</strong>
+                ${sleepQualityDots(sleep.quality)}
+              </div>
+              <span class="sleep-summary-sub">취침 ${esc(sleep.bed)} → 기상 ${esc(sleep.wake)} · ${sleepMetGoal(sleep.bed, goal) ? "목표 취침 지킴 ✓" : `목표(${esc(goal)})보다 늦게 잠`}</span>
+              ${sleep.note ? `<p class="sleep-summary-note">${esc(sleep.note)}</p>` : ""}
+            </div>
+          ` : `
+            <form class="sleep-form" data-form="sleep-log" data-sleep-date="${attr(date)}">
+              <div class="sleep-time-row">
+                <label><span>취침</span><input name="bed" type="time" value="${attr(goal)}" required></label>
+                <label><span>기상</span><input name="wake" type="time" value="06:30" required></label>
+              </div>
+              <div class="sleep-quality-row">
+                <div class="sleep-quality-picker" role="radiogroup" aria-label="수면의 질 (1 나쁨 – 5 좋음)">
+                  ${[1, 2, 3, 4, 5].map((value) => `
+                    <label title="${qualityLabels[value]}">
+                      <input type="radio" name="quality" value="${value}" ${value === 3 ? "checked" : ""}>
+                      <span>${value}</span>
+                    </label>
+                  `).join("")}
+                </div>
+                <span class="sleep-quality-hint">질 1 나쁨 – 5 좋음</span>
+              </div>
+              <div class="sleep-note-row">
+                <input name="note" type="text" maxlength="80" placeholder="메모 (선택) — 늦게 잔 이유, 깬 횟수…">
+                <button class="text-btn" type="submit">기록</button>
+              </div>
+            </form>
+          `}
+          <div class="sleep-goal-row">
+            <span>목표 취침</span>
+            <input type="time" value="${attr(goal)}" data-sleep-goal title="목표 취침 시각">
+            <span class="sleep-goal-hint">이 시각 안에 자면 🌙 취침 루틴이 자동 체크됩니다</span>
+          </div>
+        </div>
+      </section>
     `;
   }
 
@@ -2628,7 +2729,58 @@
             }).join("") || `<div class="empty">등록된 루틴이 없습니다.</div>`}
           </div>
         </section>
+        ${renderStatsSleepPanel()}
       </div>
+    `;
+  }
+
+  function renderStatsSleepPanel() {
+    const dates = routineWeekDates(state.currentDate);
+    const goal = state.sleepGoalBed || "23:30";
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    const entries = dates.map((date) => ({
+      date,
+      day: dayNames[new Date(`${date}T00:00:00`).getDay()],
+      sleep: normalizeSleepLog(state.reviews.daily[date]?.sleep)
+    }));
+    const recorded = entries.filter((entry) => entry.sleep);
+    const avgMinutes = recorded.length
+      ? Math.round(recorded.reduce((sum, entry) => sum + sleepDurationMinutes(entry.sleep.bed, entry.sleep.wake), 0) / recorded.length)
+      : 0;
+    const avgQuality = recorded.length
+      ? (recorded.reduce((sum, entry) => sum + entry.sleep.quality, 0) / recorded.length).toFixed(1)
+      : "–";
+    const goalMet = recorded.filter((entry) => sleepMetGoal(entry.sleep.bed, goal)).length;
+    return `
+      <section class="panel sheet">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">수면</h2>
+            <p class="panel-subtitle">기상일 기준 · 목표 취침 ${esc(goal)}</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          ${recorded.length ? `
+            <div class="sleep-stat-summary">
+              <div class="mini-stat"><strong>${esc(minutesToText(avgMinutes))}</strong><span>평균 수면 (기록 ${recorded.length}일)</span></div>
+              <div class="mini-stat"><strong>${esc(String(avgQuality))}/5</strong><span>평균 수면의 질</span></div>
+              <div class="mini-stat"><strong>${goalMet}/${recorded.length}일</strong><span>목표 취침 지킴</span></div>
+            </div>
+            <div class="sleep-week-rows">
+              ${entries.map((entry) => `
+                <div class="sleep-week-row ${entry.sleep ? "" : "is-empty"}">
+                  <span class="sleep-week-day">${esc(entry.day)}</span>
+                  ${entry.sleep ? `
+                    <span class="sleep-week-time">${esc(entry.sleep.bed)} → ${esc(entry.sleep.wake)}</span>
+                    <span class="sleep-week-duration">${esc(minutesToText(sleepDurationMinutes(entry.sleep.bed, entry.sleep.wake)))}</span>
+                    ${sleepQualityDots(entry.sleep.quality)}
+                  ` : `<span class="sleep-week-time">—</span>`}
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="empty">아직 이번 주 수면 기록이 없습니다. 오늘 탭의 🌙 수면 카드에서 아침마다 기록하세요.</div>`}
+        </div>
+      </section>
     `;
   }
 
@@ -2724,6 +2876,7 @@
         tagline: "오늘의 실행 — 기록은 그 자리에서, 회고는 자기 전에",
         when: "아침 5분(체크박스 세팅) + 일과 중 틈틈이 + 자기 전 5분(회고)",
         how: [
+          "아침: 수면 카드에 어젯밤 취침·기상 시각과 질(1~5)을 10초로 기록합니다. 밤잠은 기상일 기준이고, 목표 취침 안에 잤으면 🌙 루틴이 자동 체크됩니다.",
           "아침: 오늘 체크박스에 '오늘 반드시 끝낼 일' 3~5개만 적습니다.",
           "일정 카드를 누르면 옆 패널에서 실행 기록을 수정하고, 메모에 실험 조건·회의 결정사항을, 사진에 장비 세팅이나 결과 화면을 붙입니다. 나중에 '그때 조건이 뭐였지?'를 여기서 찾게 됩니다.",
           "자전거 카드: 라이딩한 날 ↻를 누르면 intervals.icu에서 기록(거리·시간·속도·고도)을 가져옵니다. 연결 전이면 거리/시간만 직접 입력해도 루틴이 체크됩니다.",
@@ -2810,13 +2963,13 @@
         tagline: "일주일 돌아보기 — 반성용이 아니라 다음 주 설계의 입력값",
         when: "주말 5분, 주간 리뷰와 함께",
         how: [
-          "영역별 시간: 주업무(연구) 비중이 의도만큼인지 확인합니다.",
+          "영역별 시간: 연구(몰입) 비중이 의도만큼인지, 회복이 너무 적지 않은지 확인합니다.",
           "연구별 투입 시간: 어느 과제가 시간을 잡아먹는지 — 중요한 일이 아니라 급한 일에 시간이 쏠리지 않았는지 봅니다.",
           "루틴 달성과 주간 라이딩 km를 확인합니다.",
           "발견한 것 중 딱 1개만 다음 주 계획에 반영합니다. 여러 개 고치려 들면 아무것도 안 바뀝니다."
         ],
         examples: [
-          "「보조업무가 12시간 → 이메일·행정은 오후 4시 한 블록으로 묶기」",
+          "「운영이 12시간 → 이메일·행정은 오후 4시 한 블록으로 묶기」",
           "「논문 작성이 3시간뿐 → 화·목 오전 첫 블록으로 고정」",
           "「이번 주 라이딩 58km, 루틴 3/3 달성」"
         ],
@@ -2850,13 +3003,12 @@
 
   function renderCategoryGuideTable() {
     const rows = [
-      ["주업무", "연구, 수업, 강의, 논문, 프로젝트 핵심 작업"],
-      ["보조업무", "행정, 정리, 이메일, 자료 준비, 회의 준비"],
-      ["개인업무", "은행, 병원, 예약, 개인 처리 일"],
-      ["가정", "아이들, 집안일, 가족 일정"],
-      ["신앙", "예배, 기도, 묵상, 공동체 활동"],
-      ["휴먼 네트워크", "만남, 연락, 관계 관리, 상담"],
-      ["자기개발/관리", "운동, 독서, 공부, 영어, 코딩, 식사, 수면, 휴식, 산책, 낮잠"]
+      ["연구", "논문, 과제, 실험, 강의·강의안, 개발 — 끝나면 산출물이 남는 몰입 작업만"],
+      ["운영", "이메일, 행정, 회의, 자료 정리, 이동 — 그 외 업무 전부 (헷갈리면 여기)"],
+      ["가정", "아이들 공부, 집안일, 가족 행사, 가정예배 — 가족과 함께하는 모든 것"],
+      ["신앙/봉사", "예배, 기도, 묵상, 교회 공동체 활동, 봉사, 교재 준비"],
+      ["개인", "운동, 독서, 영어, 코딩 같은 자기계발 + 은행, 병원 같은 개인 처리"],
+      ["회복", "혼자 하는 식사, 산책, 낮잠, 쉼 — 밤잠은 오늘 탭 수면 카드에 기록"]
     ];
     return `
       <div class="category-guide-table" role="table" aria-label="카테고리 기준표">
@@ -2870,6 +3022,12 @@
             <p role="cell">${esc(description)}</p>
           </div>
         `).join("")}
+      </div>
+      <div class="category-guide-rules">
+        <strong>3초 판정 규칙</strong>
+        <p>1. 업무인데 헷갈리면 무조건 <b>운영</b>. 연구는 산출물이 남는 일만 엄격하게 — 그래야 통계의 몰입 시간이 정직해집니다.</p>
+        <p>2. 일 밖의 시간은 활동이 아니라 <b>사람 기준</b>으로: 가족과 함께면 가정, 교회·공동체 맥락이면 신앙/봉사, 나 혼자면 개인 또는 회복.</p>
+        <p>3. 카테고리는 주말 통계에서 묻는 질문입니다 — 연구(몰입을 확보했나) · 운영(잡무가 얼마나 먹었나) · 가정(가족에게 시간을 냈나) · 신앙/봉사(리듬이 유지됐나) · 개인(나에게 투자했나) · 회복(충분히 쉬었나).</p>
       </div>
     `;
   }
@@ -4198,6 +4356,30 @@
       return;
     }
 
+    if (type === "sleep-log") {
+      const sleepDate = form.dataset.sleepDate || state.currentDate;
+      const bed = String(data.bed || "");
+      const wake = String(data.wake || "");
+      if (!/^\d{1,2}:\d{2}$/.test(bed) || !/^\d{1,2}:\d{2}$/.test(wake)) return;
+      setState((draft) => {
+        const log = ensureDailyLogMutable(draft, sleepDate);
+        log.sleep = {
+          bed,
+          wake,
+          quality: Math.min(5, Math.max(1, Number(data.quality) || 3)),
+          note: String(data.note || "").trim()
+        };
+        if (sleepMetGoal(bed, draft.sleepGoalBed)) {
+          const sleepRoutine = draft.routines.find((routine) => routine.id === "routine-sleep" || routine.name.includes("취침"));
+          if (sleepRoutine) {
+            const list = Array.isArray(draft.routineChecks[sleepDate]) ? draft.routineChecks[sleepDate] : [];
+            if (!list.includes(sleepRoutine.id)) draft.routineChecks[sleepDate] = [...list, sleepRoutine.id];
+          }
+        }
+      });
+      return;
+    }
+
     if (type === "task") {
       setState((draft) => {
         draft.tasks.push({
@@ -4278,7 +4460,9 @@
       checks: Array.isArray(existing?.checks) ? existing.checks.map(normalizeDailyCheck) : [],
       photos: Array.isArray(existing?.photos) ? existing.photos : [],
       shareDraft: existing?.shareDraft || "",
-      shareFormat: shareFormatById(existing?.shareFormat).id
+      shareFormat: shareFormatById(existing?.shareFormat).id,
+      bike: existing?.bike && typeof existing.bike === "object" ? existing.bike : null,
+      sleep: normalizeSleepLog(existing?.sleep)
     };
   }
 
@@ -4568,6 +4752,25 @@
         });
       });
     });
+
+    app.querySelectorAll("[data-sleep-clear]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setState((draft) => {
+          const log = ensureDailyLogMutable(draft, button.dataset.sleepClear);
+          log.sleep = null;
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-sleep-goal]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const value = input.value;
+        if (!/^\d{2}:\d{2}$/.test(value)) return;
+        setState((draft) => {
+          draft.sleepGoalBed = value;
+        });
+      });
+    });
   }
 
   // ===== Google Calendar 양방향 동기화 (Plan 전용) =====
@@ -4581,8 +4784,9 @@
   const GCAL_CALENDAR_LEGACY_NAME = "Life Binder"; // 구 이름 — 발견 시 자동 개명
   const GCAL_PUSH_DELAY = 1200;
   const GCAL_FAILURE_ALERT_AT = 3;
-  const GCAL_COLOR_BY_CATEGORY = { mainWork: "5", supportWork: "4", faithHome: "10", selfDev: "9", network: "6" };
-  const GCAL_CATEGORY_BY_COLOR = { 5: "mainWork", 4: "supportWork", 10: "faithHome", 9: "selfDev", 6: "network" };
+  // 5=바나나(연구) 4=플라밍고(운영) 6=귤(가정) 10=바질(신앙/봉사) 9=블루베리(개인) 3=포도(회복)
+  const GCAL_COLOR_BY_CATEGORY = { mainWork: "5", supportWork: "4", family: "6", faithHome: "10", selfDev: "9", recovery: "3" };
+  const GCAL_CATEGORY_BY_COLOR = { 5: "mainWork", 4: "supportWork", 6: "family", 10: "faithHome", 9: "selfDev", 3: "recovery" };
 
   let gcal = loadGcalLocal();
   let gcalTokenClient = null;
