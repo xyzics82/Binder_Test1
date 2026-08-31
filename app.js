@@ -2574,7 +2574,7 @@
   function renderRoutineView() {
     const dates = routineWeekDates(state.currentDate);
     const today = todayISO();
-    const dayNames = ["월", "화", "수", "목", "금", "토", "일"];
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"]; // 실제 날짜의 요일로 표시 (주 시작=일요일)
     return `
       <div class="view-grid">
         <section class="panel sheet">
@@ -2590,7 +2590,7 @@
                 <span class="routine-name-cell" role="columnheader">루틴</span>
                 ${dates.map((date, idx) => `
                   <span class="routine-day-head ${date === today ? "is-today" : ""}" role="columnheader">
-                    <em>${esc(dayNames[idx])}</em>
+                    <em>${esc(dayNames[new Date(`${date}T00:00:00`).getDay()])}</em>
                     <span>${esc(date.slice(8))}</span>
                   </span>
                 `).join("")}
