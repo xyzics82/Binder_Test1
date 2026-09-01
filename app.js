@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // build: 20260901-training-tab-1
+  // build: 20260901-training-tab-2
 
   const STORE_KEY = "life-binder-web-state-v1";
   const AUTH_STORE_KEY = "life-binder-auth-v1";
@@ -630,25 +630,30 @@
   // days는 요일(getDay: 0=일 … 6=토)별 { commute, extra } 셀, checks는 날짜별 완료 슬롯 목록.
 
   const TRAINING_SLOTS = [
-    { id: "commute", label: "출퇴근 라이딩" },
-    { id: "extra", label: "추가 훈련" }
+    { id: "morning", label: "출근" },
+    { id: "evening", label: "퇴근" },
+    { id: "extra", label: "추가 운동" }
   ];
 
   function emptyTrainingCell() {
-    return { name: "", power: "", hr: "", dist: "" };
+    return { name: "", power: "", hr: "", dist: "", plan: "", fuel: "" };
   }
 
   function defaultTraining() {
-    const cell = (name, power = "", hr = "", dist = "") => ({ name, power, hr, dist });
+    const cell = (name, power = "", dist = "", plan = "", fuel = "") => ({ name, power, hr: "", dist, plan, fuel });
+    const commutePair = (name, power) => ({
+      morning: cell(name, power, "20km"),
+      evening: cell(name, power, "20km")
+    });
     return {
       days: {
-        1: { commute: cell("낮은 존2", "120–135"), extra: emptyTrainingCell() },
-        2: { commute: cell("회복~낮은 존2", "110–130"), extra: cell("역치 + 근력 A") },
-        3: { commute: cell("회복주행", "100–120"), extra: emptyTrainingCell() },
-        4: { commute: cell("회복~낮은 존2", "110–130"), extra: cell("VO₂max + 근력 B") },
-        5: { commute: cell("회복주행", "100–120"), extra: emptyTrainingCell() },
-        6: { commute: cell("장거리 존2 3–4시간", "120–145 (주로)"), extra: emptyTrainingCell() },
-        0: { commute: cell("완전 휴식"), extra: cell("가벼운 걷기·스트레칭만") }
+        1: { ...commutePair("낮은 존2", "120–135"), extra: emptyTrainingCell() },
+        2: { ...commutePair("회복~낮은 존2", "110–130"), extra: cell("역치 + 근력 A") },
+        3: { ...commutePair("회복주행", "100–120"), extra: emptyTrainingCell() },
+        4: { ...commutePair("회복~낮은 존2", "110–130"), extra: cell("VO₂max + 근력 B") },
+        5: { ...commutePair("회복주행", "100–120"), extra: emptyTrainingCell() },
+        6: { morning: emptyTrainingCell(), evening: emptyTrainingCell(), extra: cell("장거리 존2", "120–145 (주로)", "", "3–4시간 유지") },
+        0: { morning: emptyTrainingCell(), evening: emptyTrainingCell(), extra: cell("완전 휴식", "", "", "가벼운 걷기·스트레칭만") }
       },
       checks: {}
     };
@@ -656,21 +661,28 @@
 
   function normalizeTrainingCell(cell) {
     if (!cell || typeof cell !== "object") return emptyTrainingCell();
+    const text = (value) => (typeof value === "string" ? value : "");
     return {
-      name: typeof cell.name === "string" ? cell.name : "",
-      power: typeof cell.power === "string" ? cell.power : "",
-      hr: typeof cell.hr === "string" ? cell.hr : "",
-      dist: typeof cell.dist === "string" ? cell.dist : ""
+      name: text(cell.name),
+      power: text(cell.power),
+      hr: text(cell.hr),
+      dist: text(cell.dist),
+      plan: text(cell.plan),
+      fuel: text(cell.fuel)
     };
   }
 
   function normalizeTraining(training) {
     if (!training || typeof training !== "object" || !training.days) return defaultTraining();
+    // 구형(출퇴근 통합 2칸) 데이터는 새 3칸(출근/퇴근/추가) 기본 계획으로 재시드한다.
+    const firstDay = training.days[1] || training.days["1"] || training.days[0] || training.days["0"] || {};
+    if (firstDay.commute || (!firstDay.morning && !firstDay.evening)) return defaultTraining();
     const days = {};
     for (let dow = 0; dow < 7; dow++) {
       const source = training.days[dow] || training.days[String(dow)] || {};
       days[dow] = {
-        commute: normalizeTrainingCell(source.commute),
+        morning: normalizeTrainingCell(source.morning),
+        evening: normalizeTrainingCell(source.evening),
         extra: normalizeTrainingCell(source.extra)
       };
     }
@@ -2752,7 +2764,7 @@
         <div class="training-cell" role="cell">
           <span class="training-slot-label">${esc(slot.label)}</span>
           <div class="training-cell-main">
-            <input class="training-name" data-training-field data-dow="${dow}" data-slot="${slot.id}" data-field="name" value="${attr(cell.name)}" placeholder="없음 (비우면 체크 없음)" title="운동 이름 — 회복, 존2, 역치, VO₂max, 근력 등">
+            <input class="training-name" data-training-field data-dow="${dow}" data-slot="${slot.id}" data-field="name" value="${attr(cell.name)}" placeholder="없음 (비우면 체크 없음)" title="운동 이름 — 회복, 존2, 역치, VO₂max, 근력, 수영 등 자유롭게">
             ${hasPlan
               ? `<button type="button" class="training-check ${checked ? "is-checked" : ""}" data-training-check data-date="${attr(date)}" data-slot="${slot.id}" title="${checked ? "완료 취소" : "계획대로 완료"}">${checked ? "✓" : ""}</button>`
               : `<span class="training-check is-empty" title="계획 없음"></span>`}
@@ -2760,14 +2772,18 @@
           <div class="training-cell-details">
             ${field("power", "W", "파워")}
             ${field("hr", "bpm", "심박")}
-            ${field("dist", "거리·시간", "예: 40km / 1.5h")}
+            ${field("dist", "거리", "예: 20km")}
+          </div>
+          <div class="training-cell-lines">
+            <label><span>구성</span><input data-training-field data-dow="${dow}" data-slot="${slot.id}" data-field="plan" value="${attr(cell.plan)}" placeholder="예: 10' 웜업 + 4×8' 역치 + 쿨다운"></label>
+            <label><span>식단</span><input data-training-field data-dow="${dow}" data-slot="${slot.id}" data-field="fuel" value="${attr(cell.fuel)}" placeholder="예: 출발 전 바나나 · 물 500ml"></label>
           </div>
         </div>
       `;
     };
 
     return `
-      <div class="view-grid">
+      <div class="full-grid">
         <section class="panel sheet">
           <div class="panel-header">
             <div>
@@ -2800,7 +2816,7 @@
                 `;
               }).join("")}
             </div>
-            <p class="training-note">칸을 고치면 매주 같은 요일에 반복 적용됩니다. 운동을 마치면 ✓ — 완료 체크는 주별로 따로 저장되니 지난주 기록도 위쪽 주 이동(‹ ›)으로 돌아볼 수 있어요.</p>
+            <p class="training-note">출근·퇴근은 라이딩(기본 20km, 거리 수정 가능), 추가 운동은 근력·수영 등 자유롭게. 구성에는 훈련 내용을, 식단에는 훈련 전후 보급을 적어두세요. 칸을 고치면 매주 같은 요일에 반복 적용되고, 완료 체크(✓)는 주별로 따로 저장되니 지난주 기록도 위쪽 주 이동(‹ ›)으로 돌아볼 수 있어요.</p>
           </div>
         </section>
       </div>
@@ -3111,15 +3127,16 @@
         tagline: "주간 운동 계획표 — 캘린더와 분리된 훈련 관리 전용",
         when: "일요일 주간 계획 때 표 손질 + 운동 직후 체크",
         how: [
-          "요일별로 출퇴근 라이딩과 추가 훈련을 계획합니다. 운동 이름(회복, 존2, 역치, VO₂max, 근력…)과 파워(W)·심박(bpm)·거리·시간 세부를 적어두세요.",
+          "요일별로 출근·퇴근 라이딩(기본 20km, 거리 수정 가능)과 추가 운동(근력, 수영 등 자유롭게)을 계획합니다. 이름(회복, 존2, 역치, VO₂max…)과 파워(W)·심박(bpm)·거리를 적어두세요.",
+          "구성 칸에는 훈련 내용(예: 10' 웜업 + 4×8' 역치 + 쿨다운)을, 식단 칸에는 훈련 전후 보급(예: 출발 전 바나나 · 물 500ml)을 적습니다.",
           "캘린더에는 자동 반영되지 않습니다 — 실제 시간 배치는 주간 탭에서 직접. 이 표는 '무엇을 어떤 강도로'만 관리합니다.",
           "운동을 마치면 그 칸의 ✓를 눌러 계획대로 했는지 표시합니다. 이름을 비워둔 칸은 그날 계획이 없다는 뜻이라 체크 대상이 아닙니다.",
           "표 수정은 매주 같은 요일에 반복 적용되고, 완료 체크는 주별로 따로 저장됩니다. intervals.icu가 연결되어 있으면 요일 옆에 실제 라이딩 거리·시간이 자동으로 붙어 계획과 바로 비교됩니다."
         ],
         examples: [
-          "월 출퇴근: 「낮은 존2」 120–135 W / 화 추가: 「역치 + 근력 A」",
-          "토 출퇴근: 「장거리 존2 3–4시간」 주로 120–145 W",
-          "일: 「완전 휴식」 + 「가벼운 걷기·스트레칭만」 — 휴식도 계획이고, 지켰으면 체크합니다"
+          "월 출근/퇴근: 「낮은 존2」 120–135 W · 20km씩 / 화 추가: 「역치 + 근력 A」",
+          "토 추가: 「장거리 존2」 주로 120–145 W · 구성 「3–4시간 유지」 · 식단 「1시간마다 젤 1개」",
+          "일 추가: 「완전 휴식」 구성 「가벼운 걷기·스트레칭만」 — 휴식도 계획이고, 지켰으면 체크합니다"
         ],
         tip: "강도 조절이 목표라면 '더 한 것'도 계획 위반입니다. 회복주행 날 파워 상한을 지켰는지가 진짜 체크 포인트예요."
       },
@@ -3836,8 +3853,8 @@
         const dow = Number(input.dataset.dow);
         const slot = input.dataset.slot;
         const fieldName = input.dataset.field;
-        if (!(dow >= 0 && dow <= 6) || !["commute", "extra"].includes(slot)) return;
-        if (!["name", "power", "hr", "dist"].includes(fieldName)) return;
+        if (!(dow >= 0 && dow <= 6) || !["morning", "evening", "extra"].includes(slot)) return;
+        if (!["name", "power", "hr", "dist", "plan", "fuel"].includes(fieldName)) return;
         setState((draft) => {
           draft.training.days[dow][slot][fieldName] = input.value;
         });
