@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  // build: 20260831-categories-sleep-2
+  // build: 20260901-training-tab-1
 
   const STORE_KEY = "life-binder-web-state-v1";
   const AUTH_STORE_KEY = "life-binder-auth-v1";
@@ -53,6 +53,7 @@
     { id: "inbox", label: "수집함", icon: "✦", tooltip: "떠오르는 아이디어, 읽을 논문, 할 일을 일단 여기에 던져두세요. 정리는 나중에." },
     { id: "research", label: "연구", icon: "R", tooltip: "과제·실험·논문·발표를 마감과 다음 행동 중심으로 관리합니다." },
     { id: "routine", label: "루틴", icon: "∞", tooltip: "자전거, 아이들과 공부처럼 매주 반복할 활동을 체크합니다." },
+    { id: "training", label: "훈련", icon: "🚴", tooltip: "주간 운동 스케줄을 계획하고 지켰는지 확인합니다. 캘린더에는 자동 반영되지 않습니다 — 시간 배치는 주간 탭에서 직접." },
     { id: "stats", label: "통계", icon: "S", tooltip: "시간이 어디에 쓰였는지, 루틴을 얼마나 지켰는지 확인합니다." },
     { id: "guide", label: "가이드", icon: "?" },
     { id: "settings", label: "설정", icon: "⚙" }
@@ -551,6 +552,7 @@
       research: normalizeResearch(next),
       routines: normalizeRoutines(next.routines),
       routineChecks: next.routineChecks && typeof next.routineChecks === "object" ? next.routineChecks : {},
+      training: normalizeTraining(next.training),
       tasks: Array.isArray(next.tasks) ? next.tasks.map(normalizeTask) : [],
       blocks: Array.isArray(next.blocks) ? next.blocks.map(normalizeBlock) : [],
       notes: Array.isArray(next.notes) ? next.notes.map(normalizeNote) : [],
@@ -622,6 +624,60 @@
       emoji: routine.emoji || "✓",
       target: Math.min(7, Math.max(1, Number(routine.target) || 3))
     }));
+  }
+
+  // ===== 훈련 탭: 주간 운동 계획 (캘린더 비연동 — 계획·확인 전용) =====
+  // days는 요일(getDay: 0=일 … 6=토)별 { commute, extra } 셀, checks는 날짜별 완료 슬롯 목록.
+
+  const TRAINING_SLOTS = [
+    { id: "commute", label: "출퇴근 라이딩" },
+    { id: "extra", label: "추가 훈련" }
+  ];
+
+  function emptyTrainingCell() {
+    return { name: "", power: "", hr: "", dist: "" };
+  }
+
+  function defaultTraining() {
+    const cell = (name, power = "", hr = "", dist = "") => ({ name, power, hr, dist });
+    return {
+      days: {
+        1: { commute: cell("낮은 존2", "120–135"), extra: emptyTrainingCell() },
+        2: { commute: cell("회복~낮은 존2", "110–130"), extra: cell("역치 + 근력 A") },
+        3: { commute: cell("회복주행", "100–120"), extra: emptyTrainingCell() },
+        4: { commute: cell("회복~낮은 존2", "110–130"), extra: cell("VO₂max + 근력 B") },
+        5: { commute: cell("회복주행", "100–120"), extra: emptyTrainingCell() },
+        6: { commute: cell("장거리 존2 3–4시간", "120–145 (주로)"), extra: emptyTrainingCell() },
+        0: { commute: cell("완전 휴식"), extra: cell("가벼운 걷기·스트레칭만") }
+      },
+      checks: {}
+    };
+  }
+
+  function normalizeTrainingCell(cell) {
+    if (!cell || typeof cell !== "object") return emptyTrainingCell();
+    return {
+      name: typeof cell.name === "string" ? cell.name : "",
+      power: typeof cell.power === "string" ? cell.power : "",
+      hr: typeof cell.hr === "string" ? cell.hr : "",
+      dist: typeof cell.dist === "string" ? cell.dist : ""
+    };
+  }
+
+  function normalizeTraining(training) {
+    if (!training || typeof training !== "object" || !training.days) return defaultTraining();
+    const days = {};
+    for (let dow = 0; dow < 7; dow++) {
+      const source = training.days[dow] || training.days[String(dow)] || {};
+      days[dow] = {
+        commute: normalizeTrainingCell(source.commute),
+        extra: normalizeTrainingCell(source.extra)
+      };
+    }
+    return {
+      days,
+      checks: training.checks && typeof training.checks === "object" ? training.checks : {}
+    };
   }
 
   function normalizeNote(note) {
@@ -1208,6 +1264,9 @@
     if (state.activeView === "routine") {
       return "매주 반복하는 활동을 요일 표에 체크합니다.";
     }
+    if (state.activeView === "training") {
+      return "주간 운동 계획표 — 캘린더에는 자동 반영되지 않습니다. 계획하고, 했는지 체크만 합니다.";
+    }
     if (state.activeView === "stats") {
       return "계획과 실행 시간의 흐름을 확인합니다.";
     }
@@ -1238,6 +1297,8 @@
         return renderResearchView();
       case "routine":
         return renderRoutineView();
+      case "training":
+        return renderTrainingView();
       case "stats":
         return renderStatsView();
       case "guide":
@@ -2663,6 +2724,89 @@
     `;
   }
 
+  function renderTrainingView() {
+    const dates = routineWeekDates(state.currentDate); // index = getDay (0=일 … 6=토)
+    const order = [1, 2, 3, 4, 5, 6, 0]; // 훈련 주 표시: 월~토 + 일(휴식)
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    const today = todayISO();
+    const checksFor = (date) => (Array.isArray(state.training.checks[date]) ? state.training.checks[date] : []);
+    let plannedCount = 0;
+    let doneCount = 0;
+    order.forEach((dow) => {
+      TRAINING_SLOTS.forEach((slot) => {
+        if ((state.training.days[dow][slot.id].name || "").trim()) {
+          plannedCount += 1;
+          if (checksFor(dates[dow]).includes(slot.id)) doneCount += 1;
+        }
+      });
+    });
+
+    const renderCell = (dow, date, slot) => {
+      const cell = state.training.days[dow][slot.id];
+      const hasPlan = Boolean((cell.name || "").trim());
+      const checked = checksFor(date).includes(slot.id);
+      const field = (name, label, placeholder) => `
+        <label><span>${label}</span><input data-training-field data-dow="${dow}" data-slot="${slot.id}" data-field="${name}" value="${attr(cell[name])}" placeholder="${placeholder}"></label>
+      `;
+      return `
+        <div class="training-cell" role="cell">
+          <span class="training-slot-label">${esc(slot.label)}</span>
+          <div class="training-cell-main">
+            <input class="training-name" data-training-field data-dow="${dow}" data-slot="${slot.id}" data-field="name" value="${attr(cell.name)}" placeholder="없음 (비우면 체크 없음)" title="운동 이름 — 회복, 존2, 역치, VO₂max, 근력 등">
+            ${hasPlan
+              ? `<button type="button" class="training-check ${checked ? "is-checked" : ""}" data-training-check data-date="${attr(date)}" data-slot="${slot.id}" title="${checked ? "완료 취소" : "계획대로 완료"}">${checked ? "✓" : ""}</button>`
+              : `<span class="training-check is-empty" title="계획 없음"></span>`}
+          </div>
+          <div class="training-cell-details">
+            ${field("power", "W", "파워")}
+            ${field("hr", "bpm", "심박")}
+            ${field("dist", "거리·시간", "예: 40km / 1.5h")}
+          </div>
+        </div>
+      `;
+    };
+
+    return `
+      <div class="view-grid">
+        <section class="panel sheet">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">주간 훈련 계획</h2>
+              <p class="panel-subtitle">계획·확인 전용 — 캘린더에는 자동 반영되지 않습니다. 실제 시간 배치는 주간 탭에서 직접 하세요.</p>
+            </div>
+            <span class="tag training-summary-tag" title="계획된 칸 중 완료 체크한 수">이번 주 ${doneCount}/${plannedCount} 완료</span>
+          </div>
+          <div class="panel-body">
+            <div class="training-table" role="table" aria-label="주간 훈련 계획표">
+              <div class="training-head-row" role="row">
+                <strong role="columnheader">요일</strong>
+                ${TRAINING_SLOTS.map((slot) => `<strong role="columnheader">${esc(slot.label)}</strong>`).join("")}
+              </div>
+              ${order.map((dow) => {
+                const date = dates[dow];
+                const rides = icuConnected() ? bikeRidesForDate(date) : [];
+                const actual = rides.length
+                  ? `실제 ${rides.reduce((sum, ride) => sum + ride.distanceKm, 0).toFixed(1)}km · ${minutesToText(Math.round(rides.reduce((sum, ride) => sum + ride.movingMin, 0)))}`
+                  : "";
+                return `
+                  <div class="training-row ${date === today ? "is-today" : ""}" role="row">
+                    <div class="training-day" role="cell">
+                      <strong>${dayNames[dow]}</strong>
+                      <span>${esc(date.slice(5).replace("-", "."))}</span>
+                      ${actual ? `<em class="training-actual" title="가민(intervals.icu) 라이딩 기록">${esc(actual)}</em>` : ""}
+                    </div>
+                    ${TRAINING_SLOTS.map((slot) => renderCell(dow, date, slot)).join("")}
+                  </div>
+                `;
+              }).join("")}
+            </div>
+            <p class="training-note">칸을 고치면 매주 같은 요일에 반복 적용됩니다. 운동을 마치면 ✓ — 완료 체크는 주별로 따로 저장되니 지난주 기록도 위쪽 주 이동(‹ ›)으로 돌아볼 수 있어요.</p>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
   function renderStatsView() {
     const weekStart = startOfWeek(state.currentDate);
     const weekEnd = endOfWeek(state.currentDate);
@@ -2961,6 +3105,23 @@
           "💪 스트레칭·근력 · 주 3회 (라이딩 없는 날)"
         ],
         tip: "2주 연속 목표 미달이면 의지를 탓하지 말고 목표 횟수를 낮추세요. 끊기지 않는 것이 우선입니다."
+      },
+      {
+        tab: "훈련",
+        tagline: "주간 운동 계획표 — 캘린더와 분리된 훈련 관리 전용",
+        when: "일요일 주간 계획 때 표 손질 + 운동 직후 체크",
+        how: [
+          "요일별로 출퇴근 라이딩과 추가 훈련을 계획합니다. 운동 이름(회복, 존2, 역치, VO₂max, 근력…)과 파워(W)·심박(bpm)·거리·시간 세부를 적어두세요.",
+          "캘린더에는 자동 반영되지 않습니다 — 실제 시간 배치는 주간 탭에서 직접. 이 표는 '무엇을 어떤 강도로'만 관리합니다.",
+          "운동을 마치면 그 칸의 ✓를 눌러 계획대로 했는지 표시합니다. 이름을 비워둔 칸은 그날 계획이 없다는 뜻이라 체크 대상이 아닙니다.",
+          "표 수정은 매주 같은 요일에 반복 적용되고, 완료 체크는 주별로 따로 저장됩니다. intervals.icu가 연결되어 있으면 요일 옆에 실제 라이딩 거리·시간이 자동으로 붙어 계획과 바로 비교됩니다."
+        ],
+        examples: [
+          "월 출퇴근: 「낮은 존2」 120–135 W / 화 추가: 「역치 + 근력 A」",
+          "토 출퇴근: 「장거리 존2 3–4시간」 주로 120–145 W",
+          "일: 「완전 휴식」 + 「가벼운 걷기·스트레칭만」 — 휴식도 계획이고, 지켰으면 체크합니다"
+        ],
+        tip: "강도 조절이 목표라면 '더 한 것'도 계획 위반입니다. 회복주행 날 파워 상한을 지켰는지가 진짜 체크 포인트예요."
       },
       {
         tab: "통계",
@@ -3666,6 +3827,32 @@
           draft.routineChecks[date] = list.includes(routineId)
             ? list.filter((id) => id !== routineId)
             : [...list, routineId];
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-training-field]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const dow = Number(input.dataset.dow);
+        const slot = input.dataset.slot;
+        const fieldName = input.dataset.field;
+        if (!(dow >= 0 && dow <= 6) || !["commute", "extra"].includes(slot)) return;
+        if (!["name", "power", "hr", "dist"].includes(fieldName)) return;
+        setState((draft) => {
+          draft.training.days[dow][slot][fieldName] = input.value;
+        });
+      });
+    });
+
+    app.querySelectorAll("[data-training-check]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const date = button.dataset.date;
+        const slot = button.dataset.slot;
+        setState((draft) => {
+          const list = Array.isArray(draft.training.checks[date]) ? draft.training.checks[date] : [];
+          draft.training.checks[date] = list.includes(slot)
+            ? list.filter((id) => id !== slot)
+            : [...list, slot];
         });
       });
     });
